@@ -96,6 +96,58 @@ public class MybatisController {
 	
 	
 	
+	/*
+	[방명록 리스트 Ver02]
+		: 페이징 기능과 검색기능을 동시에 구현
+		  (기존 Ver01을 업그레이드)
+	 */
+	@RequestMapping("mybatis/listSearch.do")
+	public String listSearch(Model model, HttpServletRequest req) {
+		// Mapper로 전달할 파라미터 저장을 위한 DTO객체 생성
+		ParameterDTO parameterDTO = new ParameterDTO();
+		// 검색어가 있는경우 저장
+		parameterDTO.setSearchField(req.getParameter("searchField"));
+		parameterDTO.setSearchField(req.getParameter("searchTxt"));
+		System.out.println("검색어 : "+ parameterDTO.getSearchTxt());
+		
+		// 게시물 카운트 (DTO객체를 인수로 전달)
+		int totalRecordCount = sqlSession.getMapper(MybatisDAOImpl.class).getTotalCountSearch(parameterDTO);
+		
+		int pageSize = 4;
+		int blockPage = 2;
+		int totalPage = (int)Math.ceil((double)totalRecordCount / pageSize);
+		int nowPage =
+				req.getParameter("nowPage")== null || req.getParameter("nowPage").equals("")
+				? 1 : Integer.parseInt(req.getParameter("nowPage"));
+		int start = (nowPage-1) * pageSize + 1;
+		int end = nowPage * pageSize;
+		
+		// 위에서 계산한 start, end(게시물의 구간)를 DTO에 저장
+		parameterDTO.setStart(start);
+		parameterDTO.setStart(end);
+		
+		// 출력할 게시물 select (DTO객체를 인수로 전달)
+		ArrayList<MyBoardDTO> lists = 
+				sqlSession.getMapper(MybatisDAOImpl.class).listPageSearch(parameterDTO);
+		
+		String pagingImg = PagingUtil.pagingImg(
+				totalRecordCount,
+				pageSize, blockPage, nowPage,
+				req.getContextPath()+ "/mybatis/listSearch.do?");
+		model.addAttribute("pagingImg", pagingImg);
+		
+		for(MyBoardDTO dto : lists) {
+			String temp = dto.getContents().replace("\r\n", "<br/>");
+			dto.setContents(temp);
+		}
+		model.addAttribute("lists", lists);
+		
+		// 검색기능이 추가된 View를 반환
+		return "07Mybatis/list_search";
+	}
+	
+	
+	
 	// 글쓰기 페이지 매핑
 	@RequestMapping("/mybatis/write.do")
 	/*

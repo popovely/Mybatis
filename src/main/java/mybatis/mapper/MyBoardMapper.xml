@@ -9,12 +9,65 @@
   "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <!-- 
-Mapper의 namespace속성
-	: 해당 매퍼파일을 호출하기 위해 정의한 인터페이스의
-	  패키지를 포함한 풀 경로를 기술한다.
-	  해당 인터페이스는 컨트롤러와 Mapper(DAO) 사이에서
-	  중재자 역할을 하는 서비스 객체로 사용된다.
+	Mapper의 namespace속성
+		: 해당 매퍼파일을 호출하기 위해 정의한 인터페이스의
+		  패키지를 포함한 풀 경로를 기술한다.
+		  해당 인터페이스는 컨트롤러와 Mapper(DAO) 사이에서
+		  중재자 역할을 하는 서비스 객체로 사용된다.
+	
+	id속성
+		: 실제 호출되는 함수명과 동일한 이름으로 기술한다.
+		  컨트롤러에서는 해당 mapper를 호출하기 위해
+		  interface에 정의된 추상메서드를 호출한다.
+		  
+	resultType (select는 DTO/int 나머지는 모두 int)
+		: 쿼리 실행후 반환되는 값의 타입을 명시한다.
+		  이 때는 패키지명을 포함한 풀 경로를 기술해야 한다.
+	
+	parameterType
+		: 쿼리문에서 사용할 파라미터를 저장한 DTO 혹은 VO객체의 타입을 명시한다.
+		  패키지 명을 포함한 풀 경로를 기술해야 한다.
+		  단, 컬렉션의 경우 list, map과 같이 풀경로를 생략할 수 있다.
  -->
+<!-- 
+	[파라미터 사용법]
+	 
+	형식1] 파라미터의 순서대로 사용
+	 	가령	함수명(인수1, 인수2)	와 같은 메서드를 사용했다면
+	 	파라미터의 순서대로 #{param1}, #{param2}와 같이 사용한다.
+	 
+	형식2] 인덱스를 사용
+		{0}, {1}과 같이 사용한다.
+	
+	형식3] @Param어노테이션을 사용
+		@Param(_변수명) String 변수명
+			=> Mapper에서는 _변수명으로 사용한다.
+	
+	형식4] DTO와 같은 객체를 사용
+		멤버변수에 접근시 멤버변수와 동일한 이름을 사용한다.
+		이 때 getter()를 통해 해당값에 접근하게 된다.
+		
+	형식5] 컬렉션(List, Map)을 사용하는 방법
+ -->
+ <!-- 
+ 	각 엘리먼트별 반환값
+ 	
+ 	select
+ 		: select한 결과 레코드를 반환한다.
+ 		  count(*)의 경우 int형의 반환값을 가지고
+ 		  일반적인 경우에는 DTO객체를 List컬렉션에 저장한 후 반환한다.
+ 	
+ 	insert
+ 		: 입력성공시 1, 실패시 0을 반환한다.
+ 		  여러개를 한번에 insert하는 경우는 없으므로
+ 		  insert가 여러번 되더라도 성공시에는 1을 반환한다.
+ 	
+ 	update / delete
+ 		: 수정, 삭제에 성공한 행의 개수를 반환한다.
+ 		  조건에 따라 여러개의 레코드가 한꺼번에 적용될 수 있으므로
+ 		  0, 1이 아닌 더 큰값이 반환될 수 있다.
+ 	
+  -->
 <mapper namespace="mybatis.MybatisDAOImpl">
 <!-- ### 방명록 1차 버전에서 사용 ### -->
 	<!-- 게시물의 개수를 카운트 한 후 정수타입으로 반환한다. -->
@@ -41,6 +94,47 @@ Mapper의 namespace속성
 		)
 		WHERE rNum BETWEEN #{param1} AND #{param2}
 	</select>
+	
+	
+	<!-- ### 방명록 2차 버전에서 사용 ### -->
+	<!-- 
+		1차 버전에서 사용했던 <select>를 그대로 복사한 후
+		if문을 추가하여 조건부 쿼리문을 작성한다.
+		또한 컨트롤러가 전달한 파라미터가 DTO객체에 저장되어 있으므로,
+		parameterType을 추가해야 한다.
+ 	-->
+	<select id="getTotalCountSearch" resultType="int"
+			parameterType="mybatis.ParameterDTO">
+		SELECT COUNT(*) from myboard
+		<!-- 검색어가 null이 아니면서 빈값이 아닐때만 동적으로 where절을 추가한다.  -->
+		<!-- 
+			$ : 양쪽으로 '(싱글쿼테이션)을 붙이지 않는다.
+			# : 양쪽에 '을 붙인다.
+		 -->
+		<if test="searchTxt!=null and !searchTxt.equals('')">
+			WHERE ${searchField} like '%'||#{searchTxt}||'%'
+		</if>
+	</select>
+	<select id="listPageSearch" resultType="mybatis.MyBoardDTO"
+			parameterType="mybatis.ParameterDTO">
+		SELECT * FROM (
+			SELECT Tb.*, rownum rNum FROM (
+				SELECT * FROM myboard
+				<if test="searchTxt!=null and !searchTxt.equals('')">
+					WHERE ${searchField} like '%'||#{searchTxt}||'%'
+				</if>
+				ORDER BY idx DESC
+			) Tb
+		)
+<!-- 	WHERE rNum BETWEEN #{start} AND #{end} -->
+		WHERE rNum <![CDATA[>=]]>#{start} AND rNum <![CDATA[<=]]>#{end}
+	</select>
+	<!-- 
+	CDATA
+		: Unparsed Character Data. 파싱되지 않는 문자 데이터.
+		  Mapper에서는 꺾쇠로 시작되는 모든 문자열을 엘리먼트로 판단하기 때문에
+		  쿼리문 사이에 피교연산자를 사용할 때에는 반드시 위와같이 처리해야 한다.
+	 -->
 	
 	
 	
@@ -89,4 +183,57 @@ Mapper의 namespace속성
 	<delete id="delete">
 		DELETE FROM myboard WHERE idx=#{param1} AND id=#{param2}
 	</delete>
+	
+	
+	
+	<!-- 
+		Map컬렉션을 사용하는 경우 parameterType에는
+			"java.util.Map" 혹은 "map"
+		둘 다 사용할 수 있다.
+		패키지명을 포함한 풀경로를 써야하지만
+		컬렉션은 JDK에서 기본적으로 제공되는 클래스이므로
+		패키지명을 생략할 수 있다.
+	 -->
+	<select id="hashMapUse" resultType="mybatis.MyBoardDTO"
+			parameterType="java.util.Map">
+		SELECT * FROM myboard
+		WHERE id=#{key_id} or name=#{key_name} or contents=#{key_contents}
+		ORDER BY idx DESC
+	</select>
+	
+	
+	
+	<!-- 
+		ArrayList도 parameterType에
+			"java.util.ArrayList" 혹은 "list"
+		둘 다 사용할 수 있다.
+		
+			collection : List컬렉션을 사용하므로 list로 파라미터명을 사용한다. (규칙)
+			item : 반복시 원소를 꺼내서 임시로 저장하는 변수명
+			index : 인덱스
+			open : 동적쿼리문의 시작 부분
+			close : 동적쿼리문의 종료 부분
+			separator : 각 항목의 구분자(or, and)
+	 -->
+	<select id="arrayListUse" resultType="mybatis.MyBoardDTO"
+			parameterType="java.util.ArrayList">
+		SELECT * FROM myboard
+		WHERE
+		<foreach collection="list" item="item" index="index"
+				 open="(" close=")" separator="or">
+			name = #{item}		
+		</foreach>
+		ORDER BY idx DESC
+	</select>
+	<!-- 
+		가령 컨트롤러에서 아래와 같이 전송했다면
+		forEach 태그내에서 생성된 쿼리문은 아래와같이 된다.
+		
+		[List에 저장된 값]
+			arrayList.add("고스톱");
+			arrayList.add("낙자쌤");
+			
+		[생성된 쿼리문]
+			(name='고스톱' or name='낙자쌤')
+	 -->
 </mapper>

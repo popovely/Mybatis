@@ -1,5 +1,8 @@
 package mybatis;
 
+import lombok.Data;
+
+@Data
 public class MyBoardDTO {
 	private int idx;
 	private String id;
@@ -7,28 +10,4 @@ public class MyBoardDTO {
 	private String contents;
 	
 	// getter / setter만 생성
-	public int getIdx() {
-		return idx;
-	}
-	public void setIdx(int idx) {
-		this.idx = idx;
-	}
-	public String getId() {
-		return id;
-	}
-	public void setId(String id) {
-		this.id = id;
-	}
-	public String getName() {
-		return name;
-	}
-	public void setName(String name) {
-		this.name = name;
-	}
-	public String getContents() {
-		return contents;
-	}
-	public void setContents(String contents) {
-		this.contents = contents;
-	}
 }

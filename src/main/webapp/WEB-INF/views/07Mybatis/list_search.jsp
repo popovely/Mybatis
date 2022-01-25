@@ -20,6 +20,20 @@ function deleteRow(idx) {
 <div class="container">
 	<h3 class="text-center">방명록(한줄게시판)</h3>
 	
+	<!-- 검색 -->
+	<div class="text-center">
+	<form method="get">
+		<select name="searchField">
+			<option value="contents">내용</option>
+			<option value="name">작성자</option>
+		</select>
+		<input type="text" name="searchTxt" />
+		<input type="submit" value="검색" />
+	</form>
+	</div>
+	
+	
+	
 	<!-- 글쓰기버튼 및 로그인/로그아웃 버튼 -->
 	<div class="text-right">
 		<!-- 
